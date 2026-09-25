@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Torneio Duozin - Wildrift - Luckzin.s</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topo">
+  <h1>🏆 Torneio Duozin - Wildrift - Luckzin.s</h1>
+</header>
+
+<nav class="abas">
+  <button class="aba-btn ativo" data-aba="times">Times</button>
+  <button class="aba-btn" data-aba="sorteio">Sorteio de Grupos</button>
+  <button class="aba-btn" data-aba="grupos">Rodadas</button>
+  <button class="aba-btn" data-aba="classificacao">Classificação</button>
+  <button class="aba-btn" data-aba="mata-mata">Semifinal / Final</button>
+</nav>
+
+<main>
+
+  <!-- ABA TIMES -->
+  <section id="times" class="secao ativo">
+    <h2>Cadastro de Times</h2>
+    <div class="form-linha">
+      <input type="text" id="input-time" placeholder="Nome do time">
+      <button id="btn-add-time" class="btn-primario">Adicionar Time</button>
+    </div>
+    <ul id="lista-times" class="lista-times"></ul>
+    <p class="dica">Cadastre uma quantidade par de times (mínimo 4) para dividir igualmente entre Grupo A e Grupo B.</p>
+  </section>
+
+  <!-- ABA SORTEIO -->
+  <section id="sorteio" class="secao">
+    <h2>Sorteio de Grupos</h2>
+    <button id="btn-sortear-grupos" class="btn-primario">🎲 Sortear Grupos</button>
+    <button id="btn-limpar-grupos" class="btn-perigo">Limpar Sorteio</button>
+
+    <div class="grupos-resultado">
+      <div class="grupo-card grupo-a">
+        <h3>GRUPO A</h3>
+        <ol id="grupo-a-lista"></ol>
+      </div>
+      <div class="grupo-card grupo-b">
+        <h3>GRUPO B</h3>
+        <ol id="grupo-b-lista"></ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- ABA RODADAS -->
+  <section id="grupos" class="secao">
+    <h2>Rodadas da Fase de Grupos</h2>
+    <button id="btn-gerar-combates" class="btn-primario">⚔️ Gerar Combates</button>
+    <button id="btn-limpar-resultados" class="btn-perigo">Limpar Resultados</button>
+
+    <div class="tabelas-grupos">
+      <div class="tabela-grupo">
+        <h3 class="titulo-a">GRUPO A</h3>
+        <div id="tabela-rodadas-a"></div>
+      </div>
+      <div class="tabela-grupo">
+        <h3 class="titulo-b">GRUPO B</h3>
+        <div id="tabela-rodadas-b"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ABA CLASSIFICAÇÃO -->
+  <section id="classificacao" class="secao">
+    <h2>Classificação</h2>
+    <p class="dica">Critério de desempate: maior quantidade de ouro geral.</p>
+    <div class="tabelas-grupos">
+      <div class="tabela-grupo">
+        <h3 class="titulo-a">GRUPO A</h3>
+        <div id="classificacao-a"></div>
+      </div>
+      <div class="tabela-grupo">
+        <h3 class="titulo-b">GRUPO B</h3>
+        <div id="classificacao-b"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ABA MATA-MATA -->
+  <section id="mata-mata" class="secao">
+    <h2>Fase Final</h2>
+    <button id="btn-gerar-mata-mata" class="btn-primario">🔥 Gerar Semifinais</button>
+    <button id="btn-limpar-mata-mata" class="btn-perigo">Limpar Fase Final</button>
+
+    <div class="mata-mata-grid">
+      <div class="chave-card">
+        <h3>SEMIFINAL 1</h3>
+        <p class="chave-legenda">1º Grupo A x 2º Grupo B</p>
+        <div id="semi1"></div>
+      </div>
+      <div class="chave-card">
+        <h3>SEMIFINAL 2</h3>
+        <p class="chave-legenda">1º Grupo B x 2º Grupo A</p>
+        <div id="semi2"></div>
+      </div>
+      <div class="chave-card final-card">
+        <h3>🏆 FINAL</h3>
+        <div id="final"></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="rodape">
+  <p>Dados salvos automaticamente no seu navegador (localStorage)</p>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
