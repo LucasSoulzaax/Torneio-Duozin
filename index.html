@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Torneio Duozin - Wildrift - Luckzin.s</title>
 <link rel="stylesheet" href="style.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js"
+  }
+}
+</script>
 </head>
 <body>
 
@@ -115,6 +122,55 @@
   <p>Dados salvos automaticamente no seu navegador (localStorage)</p>
 </footer>
 
-<script src="script.js"></script>
+<!-- ===== MODAL GENÉRICO DE CONFIRMAÇÃO ===== -->
+<div id="modal-overlay" class="modal-overlay">
+  <div class="modal-caixa">
+    <h3 id="modal-titulo">Confirmar ação</h3>
+    <p id="modal-mensagem">Tem certeza?</p>
+    <div class="modal-acoes">
+      <button id="modal-cancelar" class="btn-mini">Cancelar</button>
+      <button id="modal-confirmar" class="btn-primario">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL DE COMBATE (THREE.JS) ===== -->
+<div id="modal-combate-overlay" class="modal-overlay modal-combate-overlay">
+  <div class="modal-combate-caixa">
+    <h3 class="modal-combate-titulo">⚔️ Gerar Combates da Fase de Grupos</h3>
+    <p class="modal-combate-sub">Os times serão sorteados e cruzados em 5 rodadas por grupo.</p>
+    <div id="arena-canvas" class="arena-canvas"></div>
+    <div id="lista-combates-preview" class="lista-combates-preview"></div>
+    <div class="modal-acoes">
+      <button id="combate-cancelar" class="btn-mini">Cancelar</button>
+      <button id="combate-confirmar" class="btn-primario">Confirmar e Gerar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL DE NOTIFICAÇÃO (substitui alert) ===== -->
+<div id="modal-aviso-overlay" class="modal-overlay">
+  <div class="modal-caixa modal-aviso">
+    <h3 id="aviso-titulo">Aviso</h3>
+    <p id="aviso-mensagem"></p>
+    <div class="modal-acoes">
+      <button id="aviso-ok" class="btn-primario">Entendi</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL DE EDIÇÃO DE TIME (substitui prompt) ===== -->
+<div id="modal-editar-overlay" class="modal-overlay">
+  <div class="modal-caixa">
+    <h3>Editar Time</h3>
+    <input type="text" id="editar-input" placeholder="Nome do time">
+    <div class="modal-acoes">
+      <button id="editar-cancelar" class="btn-mini">Cancelar</button>
+      <button id="editar-salvar" class="btn-primario">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="script.js"></script>
 </body>
 </html>
