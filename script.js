@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+
 const CHAVES = {
   TIMES: 'torneio_times',
   GRUPOS: 'torneio_grupos',
@@ -20,6 +22,79 @@ let estado = {
   rodadas: carregar(CHAVES.RODADAS, { A: [], B: [] }),
   mataMata: carregar(CHAVES.MATA_MATA, null)
 };
+
+/* ==========================================================
+   SISTEMA DE MODAIS (substitui alert / confirm / prompt)
+   ========================================================== */
+
+function abrirModalConfirmacao(titulo, mensagem) {
+  return new Promise(resolve => {
+    const overlay = document.getElementById('modal-overlay');
+    document.getElementById('modal-titulo').textContent = titulo;
+    document.getElementById('modal-mensagem').textContent = mensagem;
+    overlay.classList.add('aberto');
+
+    const btnConfirmar = document.getElementById('modal-confirmar');
+    const btnCancelar = document.getElementById('modal-cancelar');
+
+    function limpar(valor) {
+      overlay.classList.remove('aberto');
+      btnConfirmar.removeEventListener('click', onConfirmar);
+      btnCancelar.removeEventListener('click', onCancelar);
+      resolve(valor);
+    }
+    function onConfirmar() { limpar(true); }
+    function onCancelar() { limpar(false); }
+
+    btnConfirmar.addEventListener('click', onConfirmar);
+    btnCancelar.addEventListener('click', onCancelar);
+  });
+}
+
+function abrirModalAviso(titulo, mensagem) {
+  return new Promise(resolve => {
+    const overlay = document.getElementById('modal-aviso-overlay');
+    document.getElementById('aviso-titulo').textContent = titulo;
+    document.getElementById('aviso-mensagem').textContent = mensagem;
+    overlay.classList.add('aberto');
+
+    const btnOk = document.getElementById('aviso-ok');
+    function onOk() {
+      overlay.classList.remove('aberto');
+      btnOk.removeEventListener('click', onOk);
+      resolve(true);
+    }
+    btnOk.addEventListener('click', onOk);
+  });
+}
+
+function abrirModalEditar(valorAtual) {
+  return new Promise(resolve => {
+    const overlay = document.getElementById('modal-editar-overlay');
+    const input = document.getElementById('editar-input');
+    input.value = valorAtual;
+    overlay.classList.add('aberto');
+    input.focus();
+
+    const btnSalvar = document.getElementById('editar-salvar');
+    const btnCancelar = document.getElementById('editar-cancelar');
+
+    function limpar(valor) {
+      overlay.classList.remove('aberto');
+      btnSalvar.removeEventListener('click', onSalvar);
+      btnCancelar.removeEventListener('click', onCancelar);
+      input.removeEventListener('keydown', onEnter);
+      resolve(valor);
+    }
+    function onSalvar() { limpar(input.value.trim() || null); }
+    function onCancelar() { limpar(null); }
+    function onEnter(e) { if (e.key === 'Enter') onSalvar(); }
+
+    btnSalvar.addEventListener('click', onSalvar);
+    btnCancelar.addEventListener('click', onCancelar);
+    input.addEventListener('keydown', onEnter);
+  });
+}
 
 /* ---------- Navegação entre abas ---------- */
 document.querySelectorAll('.aba-btn').forEach(btn => {
@@ -54,9 +129,9 @@ function renderTimes() {
   });
 }
 
-document.getElementById('btn-add-time').addEventListener('click', () => {
+document.getElementById('btn-add-time').addEventListener('click', async () => {
   const nome = inputTime.value.trim();
-  if (!nome) return alert('Digite o nome do time.');
+  if (!nome) return abrirModalAviso('Campo vazio', 'Digite o nome do time antes de adicionar.');
   estado.times.push(nome);
   salvar(CHAVES.TIMES, estado.times);
   inputTime.value = '';
@@ -67,62 +142,80 @@ inputTime.addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('btn-add-time').click();
 });
 
-listaTimesEl.addEventListener('click', e => {
+listaTimesEl.addEventListener('click', async e => {
   const idx = e.target.dataset.idx;
   if (idx === undefined) return;
+
   if (e.target.classList.contains('excluir')) {
-    if (!confirm(`Excluir o time "${estado.times[idx]}"?`)) return;
+    const ok = await abrirModalConfirmacao('Excluir time', `Tem certeza que deseja excluir o time "${estado.times[idx]}"?`);
+    if (!ok) return;
     estado.times.splice(idx, 1);
     salvar(CHAVES.TIMES, estado.times);
     renderTimes();
   }
+
   if (e.target.classList.contains('editar')) {
-    const novoNome = prompt('Novo nome do time:', estado.times[idx]);
-    if (novoNome && novoNome.trim()) {
-      estado.times[idx] = novoNome.trim();
+    const novoNome = await abrirModalEditar(estado.times[idx]);
+    if (novoNome) {
+      estado.times[idx] = novoNome;
       salvar(CHAVES.TIMES, estado.times);
       renderTimes();
     }
   }
 });
 
-/* ---------- Sorteio de Grupos ---------- */
+/* ---------- Sorteio de Grupos (aleatoriedade reforçada) ---------- */
 function embaralhar(array) {
   const arr = [...array];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
+  // Fisher-Yates, executado duas vezes para reforçar a distribuição percebida
+  for (let passo = 0; passo < 2; passo++) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
   }
   return arr;
 }
 
-document.getElementById('btn-sortear-grupos').addEventListener('click', () => {
+document.getElementById('btn-sortear-grupos').addEventListener('click', async () => {
   if (estado.times.length < 4) {
-    return alert('Cadastre pelo menos 4 times para sortear os grupos.');
+    return abrirModalAviso('Times insuficientes', 'Cadastre pelo menos 4 times para sortear os grupos.');
   }
   if (estado.times.length % 2 !== 0) {
-    return alert('A quantidade de times precisa ser par para dividir igualmente entre os dois grupos.');
+    return abrirModalAviso('Quantidade ímpar', 'A quantidade de times precisa ser par para dividir igualmente entre os dois grupos.');
   }
+
   const embaralhados = embaralhar(estado.times);
   const meio = embaralhados.length / 2;
-  estado.grupos = {
-    A: embaralhados.slice(0, meio),
-    B: embaralhados.slice(meio)
-  };
+
+  // sorteia também qual metade do array vira Grupo A e qual vira Grupo B,
+  // eliminando qualquer viés de posição
+  let grupoA = embaralhados.slice(0, meio);
+  let grupoB = embaralhados.slice(meio);
+  if (Math.random() < 0.5) {
+    [grupoA, grupoB] = [grupoB, grupoA];
+  }
+  // embaralha novamente a ordem interna de cada grupo
+  grupoA = embaralhar(grupoA);
+  grupoB = embaralhar(grupoB);
+
+  estado.grupos = { A: grupoA, B: grupoB };
   salvar(CHAVES.GRUPOS, estado.grupos);
-  // ao re-sortear grupos, zera rodadas e mata-mata antigos
+
   estado.rodadas = { A: [], B: [] };
   estado.mataMata = null;
   salvar(CHAVES.RODADAS, estado.rodadas);
   salvar(CHAVES.MATA_MATA, estado.mataMata);
+
   renderGrupos();
   renderRodadas();
   renderClassificacao();
   renderMataMata();
 });
 
-document.getElementById('btn-limpar-grupos').addEventListener('click', () => {
-  if (!confirm('Limpar o sorteio de grupos? Isso também apaga rodadas e fase final.')) return;
+document.getElementById('btn-limpar-grupos').addEventListener('click', async () => {
+  const ok = await abrirModalConfirmacao('Limpar sorteio', 'Isso vai apagar o sorteio de grupos, as rodadas e a fase final. Deseja continuar?');
+  if (!ok) return;
   estado.grupos = { A: [], B: [] };
   estado.rodadas = { A: [], B: [] };
   estado.mataMata = null;
@@ -147,7 +240,6 @@ function renderGrupos() {
 }
 
 /* ---------- Geração de Rodadas (5 times por grupo, round-robin) ---------- */
-/* Padrão fixo de confrontos para grupo de 5 times, 5 rodadas, 1 folga por rodada */
 const PADRAO_RODADAS_5 = [
   { p1: [0, 1], p2: [2, 3], folga: 4 },
   { p1: [0, 2], p2: [4, 1], folga: 3 },
@@ -157,9 +249,6 @@ const PADRAO_RODADAS_5 = [
 ];
 
 function gerarRodadasGrupo(times) {
-  if (times.length !== 5) {
-    alert('Este layout de rodadas foi desenhado para grupos de 5 times. Ajuste a quantidade de times para funcionar corretamente.');
-  }
   return PADRAO_RODADAS_5.map(r => ({
     partida1: {
       timeA: times[r.p1[0]] ?? null,
@@ -175,11 +264,227 @@ function gerarRodadasGrupo(times) {
   }));
 }
 
-document.getElementById('btn-gerar-combates').addEventListener('click', () => {
-  if (estado.grupos.A.length === 0 || estado.grupos.B.length === 0) {
-    return alert('Sorteie os grupos primeiro na aba "Sorteio de Grupos".');
+/* Monta uma lista simples de confrontos (sem folga) pra preview do modal */
+function montarPreviewCombates() {
+  const blocos = [];
+  ['A', 'B'].forEach(grupo => {
+    const times = estado.grupos[grupo];
+    if (!times || times.length === 0) return;
+    const rodadasPreview = gerarRodadasGrupo(times);
+    rodadasPreview.forEach((r, idx) => {
+      blocos.push({
+        grupo,
+        rodada: idx + 1,
+        confrontos: [
+          [r.partida1.timeA, r.partida1.timeB],
+          [r.partida2.timeA, r.partida2.timeB]
+        ].filter(c => c[0] && c[1]),
+        folga: r.folga
+      });
+    });
+  });
+  return blocos;
+}
+
+/* ==========================================================
+   ARENA 3D (Three.js) — animação de dois "personagens" se enfrentando
+   ========================================================== */
+let arenaState = null;
+
+function criarPersonagem(corHex) {
+  const grupo = new THREE.Group();
+
+  const corpoMat = new THREE.MeshStandardMaterial({ color: corHex, roughness: 0.35, metalness: 0.4, emissive: corHex, emissiveIntensity: 0.15 });
+  const corpo = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 0.9, 6, 12), corpoMat);
+  corpo.position.y = 0.7;
+  grupo.add(corpo);
+
+  const cabecaMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 });
+  const cabeca = new THREE.Mesh(new THREE.SphereGeometry(0.28, 16, 16), cabecaMat);
+  cabeca.position.y = 1.55;
+  grupo.add(cabeca);
+
+  const armaMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.8, roughness: 0.2, emissive: 0xffd700, emissiveIntensity: 0.3 });
+  const arma = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.9, 8), armaMat);
+  arma.position.set(0.45, 0.9, 0);
+  arma.rotation.z = Math.PI / 2.3;
+  grupo.add(arma);
+
+  return grupo;
+}
+
+function iniciarArena() {
+  const container = document.getElementById('arena-canvas');
+  container.innerHTML = '';
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+  camera.position.set(0, 1.6, 5.2);
+  camera.lookAt(0, 0.8, 0);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  container.appendChild(renderer.domElement);
+
+  const luzAmbiente = new THREE.AmbientLight(0x8c52ff, 0.6);
+  scene.add(luzAmbiente);
+  const luzPonto = new THREE.PointLight(0xb083ff, 3, 15);
+  luzPonto.position.set(0, 4, 3);
+  scene.add(luzPonto);
+  const luzRim = new THREE.PointLight(0xff5c5c, 1.5, 10);
+  luzRim.position.set(0, 1, -3);
+  scene.add(luzRim);
+
+  const chaoMat = new THREE.MeshStandardMaterial({ color: 0x1a1a22, roughness: 0.9 });
+  const chao = new THREE.Mesh(new THREE.CircleGeometry(6, 32), chaoMat);
+  chao.rotation.x = -Math.PI / 2;
+  chao.position.y = 0;
+  scene.add(chao);
+
+  const personagemA = criarPersonagem(0x8c52ff);
+  personagemA.position.set(-2.6, 0, 0);
+  scene.add(personagemA);
+
+  const personagemB = criarPersonagem(0xff2e63);
+  personagemB.position.set(2.6, 0, 0);
+  personagemB.rotation.y = Math.PI;
+  scene.add(personagemB);
+
+  const vsTag = document.createElement('div');
+  vsTag.className = 'vs-tag-arena';
+  vsTag.textContent = 'VS';
+  container.appendChild(vsTag);
+
+  let relogio = new THREE.Clock();
+  let ativo = true;
+
+  function animar() {
+    if (!ativo) return;
+    requestAnimationFrame(animar);
+    const t = relogio.getElapsedTime();
+
+    const aproximacao = Math.min(t / 2.2, 1);
+    const easeInOut = aproximacao < 0.5
+      ? 2 * aproximacao * aproximacao
+      : 1 - Math.pow(-2 * aproximacao + 2, 2) / 2;
+
+    personagemA.position.x = -2.6 + easeInOut * 1.7;
+    personagemB.position.x = 2.6 - easeInOut * 1.7;
+
+    personagemA.position.y = Math.abs(Math.sin(t * 4)) * 0.08;
+    personagemB.position.y = Math.abs(Math.sin(t * 4 + 1)) * 0.08;
+
+    if (aproximacao >= 1) {
+      const impacto = Math.sin(t * 18) * 0.08;
+      personagemA.position.x = -0.9 + impacto;
+      personagemB.position.x = 0.9 - impacto;
+      vsTag.classList.add('mostrar');
+      luzPonto.intensity = 3 + Math.abs(Math.sin(t * 10)) * 2;
+    } else {
+      vsTag.classList.remove('mostrar');
+    }
+
+    personagemA.rotation.y = Math.sin(t * 2) * 0.1;
+    personagemB.rotation.y = Math.PI + Math.sin(t * 2 + 1) * 0.1;
+
+    renderer.render(scene, camera);
   }
-  if (!confirm('Gerar novos combates? Isso vai sobrescrever as rodadas atuais.')) return;
+  animar();
+
+  arenaState = {
+    parar() {
+      ativo = false;
+      renderer.dispose();
+      container.innerHTML = '';
+    }
+  };
+}
+
+function pararArena() {
+  if (arenaState) {
+    arenaState.parar();
+    arenaState = null;
+  }
+}
+
+/* ---------- Modal de Combate: preview + confirmação ---------- */
+function renderPreviewCombates(blocos) {
+  const container = document.getElementById('lista-combates-preview');
+  container.innerHTML = '';
+
+  const porGrupo = { A: blocos.filter(b => b.grupo === 'A'), B: blocos.filter(b => b.grupo === 'B') };
+
+  ['A', 'B'].forEach(grupo => {
+    if (porGrupo[grupo].length === 0) return;
+    const tituloGrupo = document.createElement('div');
+    tituloGrupo.innerHTML = `<h4 style="margin-top:14px;color:${grupo === 'A' ? '#b083ff' : '#ff6f91'}">GRUPO ${grupo}</h4>`;
+    container.appendChild(tituloGrupo);
+
+    porGrupo[grupo].forEach(bloco => {
+      const divRodada = document.createElement('div');
+      divRodada.className = 'preview-rodada';
+      const titulo = document.createElement('h4');
+      titulo.textContent = `${bloco.rodada}ª Rodada`;
+      divRodada.appendChild(titulo);
+
+      bloco.confrontos.forEach(([time1, time2], i) => {
+        const div = document.createElement('div');
+        div.className = 'preview-confronto';
+        div.style.animationDelay = `${i * 0.1}s`;
+        div.innerHTML = `
+          <span class="lado">${time1}</span>
+          <span class="vs-mini">VS</span>
+          <span class="lado direita">${time2}</span>
+        `;
+        divRodada.appendChild(div);
+      });
+
+      if (bloco.folga) {
+        const folga = document.createElement('div');
+        folga.className = 'preview-folga';
+        folga.textContent = `Folga: ${bloco.folga}`;
+        divRodada.appendChild(folga);
+      }
+
+      container.appendChild(divRodada);
+    });
+  });
+}
+
+function abrirModalCombate() {
+  return new Promise(resolve => {
+    const overlay = document.getElementById('modal-combate-overlay');
+    const blocos = montarPreviewCombates();
+    renderPreviewCombates(blocos);
+    overlay.classList.add('aberto');
+    iniciarArena();
+
+    const btnConfirmar = document.getElementById('combate-confirmar');
+    const btnCancelar = document.getElementById('combate-cancelar');
+
+    function limpar(valor) {
+      overlay.classList.remove('aberto');
+      pararArena();
+      btnConfirmar.removeEventListener('click', onConfirmar);
+      btnCancelar.removeEventListener('click', onCancelar);
+      resolve(valor);
+    }
+    function onConfirmar() { limpar(true); }
+    function onCancelar() { limpar(false); }
+
+    btnConfirmar.addEventListener('click', onConfirmar);
+    btnCancelar.addEventListener('click', onCancelar);
+  });
+}
+
+document.getElementById('btn-gerar-combates').addEventListener('click', async () => {
+  if (estado.grupos.A.length === 0 || estado.grupos.B.length === 0) {
+    return abrirModalAviso('Grupos não sorteados', 'Sorteie os grupos primeiro na aba "Sorteio de Grupos".');
+  }
+  const ok = await abrirModalCombate();
+  if (!ok) return;
+
   estado.rodadas = {
     A: gerarRodadasGrupo(estado.grupos.A),
     B: gerarRodadasGrupo(estado.grupos.B)
@@ -189,8 +494,9 @@ document.getElementById('btn-gerar-combates').addEventListener('click', () => {
   renderClassificacao();
 });
 
-document.getElementById('btn-limpar-resultados').addEventListener('click', () => {
-  if (!confirm('Apagar todos os resultados lançados nas rodadas?')) return;
+document.getElementById('btn-limpar-resultados').addEventListener('click', async () => {
+  const ok = await abrirModalConfirmacao('Limpar resultados', 'Apagar todos os resultados lançados nas rodadas?');
+  if (!ok) return;
   ['A', 'B'].forEach(g => {
     estado.rodadas[g].forEach(r => {
       r.partida1.resultado = null;
@@ -231,34 +537,37 @@ function criarBlocoPartida(grupo, rodadaIdx, chavePartida, partida) {
         <span>${partida.timeA}<span class="vs">vs</span>${partida.timeB}</span>
         <span class="status-tag ${feito ? 'feito' : ''}">${feito ? 'Resultado lançado' : 'Pendente'}</span>
       </div>
-      <div class="stats-grid">
-        <div class="stats-time">
-          <strong>${partida.timeA}</strong>
-          <label>Ouro (ex: 22.5k)</label>
-          <input type="text" class="in-ouroA" value="${res.ouroA ?? ''}" placeholder="22.5k">
-          <label>Kills</label>
-          <input type="number" class="in-killsA" value="${res.killsA ?? 0}" min="0">
-          <label>Mortes</label>
-          <input type="number" class="in-deathsA" value="${res.deathsA ?? 0}" min="0">
-          <label>Assistências</label>
-          <input type="number" class="in-assistsA" value="${res.assistsA ?? 0}" min="0">
+      <details ${feito ? '' : ''}>
+        <summary class="btn-mini" style="display:inline-block;cursor:pointer;">${feito ? 'Ver / editar resultado' : 'Lançar resultado'}</summary>
+        <div class="stats-grid">
+          <div class="stats-time">
+            <strong>${partida.timeA}</strong>
+            <label>Ouro (ex: 22.5k)</label>
+            <input type="text" class="in-ouroA" value="${res.ouroA ?? ''}" placeholder="22.5k">
+            <label>Kills</label>
+            <input type="number" class="in-killsA" value="${res.killsA ?? 0}" min="0">
+            <label>Mortes</label>
+            <input type="number" class="in-deathsA" value="${res.deathsA ?? 0}" min="0">
+            <label>Assistências</label>
+            <input type="number" class="in-assistsA" value="${res.assistsA ?? 0}" min="0">
+          </div>
+          <div class="stats-time">
+            <strong>${partida.timeB}</strong>
+            <label>Ouro (ex: 22.5k)</label>
+            <input type="text" class="in-ouroB" value="${res.ouroB ?? ''}" placeholder="22.5k">
+            <label>Kills</label>
+            <input type="number" class="in-killsB" value="${res.killsB ?? 0}" min="0">
+            <label>Mortes</label>
+            <input type="number" class="in-deathsB" value="${res.deathsB ?? 0}" min="0">
+            <label>Assistências</label>
+            <input type="number" class="in-assistsB" value="${res.assistsB ?? 0}" min="0">
+          </div>
         </div>
-        <div class="stats-time">
-          <strong>${partida.timeB}</strong>
-          <label>Ouro (ex: 22.5k)</label>
-          <input type="text" class="in-ouroB" value="${res.ouroB ?? ''}" placeholder="22.5k">
-          <label>Kills</label>
-          <input type="number" class="in-killsB" value="${res.killsB ?? 0}" min="0">
-          <label>Mortes</label>
-          <input type="number" class="in-deathsB" value="${res.deathsB ?? 0}" min="0">
-          <label>Assistências</label>
-          <input type="number" class="in-assistsB" value="${res.assistsB ?? 0}" min="0">
+        <div class="partida-acoes">
+          <button class="btn-mini salvar-partida">${feito ? 'Atualizar resultado' : 'Salvar resultado'}</button>
+          ${feito ? '<button class="btn-mini excluir apagar-partida">Apagar resultado</button>' : ''}
         </div>
-      </div>
-      <div class="partida-acoes">
-        <button class="btn-mini salvar-partida">${feito ? 'Atualizar resultado' : 'Salvar resultado'}</button>
-        ${feito ? '<button class="btn-mini excluir apagar-partida">Apagar resultado</button>' : ''}
-      </div>
+      </details>
     </div>
   `;
 }
@@ -286,7 +595,7 @@ function renderRodadas() {
 }
 
 /* Delegação de eventos para salvar/apagar resultado de partida */
-document.getElementById('grupos').addEventListener('click', e => {
+document.getElementById('grupos').addEventListener('click', async e => {
   const bloco = e.target.closest('.partida');
   if (!bloco) return;
   const grupo = bloco.dataset.grupo;
@@ -305,7 +614,7 @@ document.getElementById('grupos').addEventListener('click', e => {
     const assistsB = Number(bloco.querySelector('.in-assistsB').value) || 0;
 
     if (!ouroA || !ouroB) {
-      return alert('Preencha o ouro de ambos os times (ex: 22.5k).');
+      return abrirModalAviso('Campos obrigatórios', 'Preencha o ouro de ambos os times (ex: 22.5k).');
     }
 
     const numOuroA = ouroParaNumero(ouroA);
@@ -322,7 +631,8 @@ document.getElementById('grupos').addEventListener('click', e => {
   }
 
   if (e.target.classList.contains('apagar-partida')) {
-    if (!confirm('Apagar o resultado desta partida?')) return;
+    const ok = await abrirModalConfirmacao('Apagar resultado', 'Apagar o resultado desta partida?');
+    if (!ok) return;
     partida.resultado = null;
     salvar(CHAVES.RODADAS, estado.rodadas);
     renderRodadas();
@@ -360,7 +670,7 @@ function calcularClassificacao(grupo) {
 
   return Object.values(tabela).sort((a, b) => {
     if (b.vitorias !== a.vitorias) return b.vitorias - a.vitorias;
-    return b.ouro - a.ouro; // desempate por ouro
+    return b.ouro - a.ouro;
   });
 }
 
@@ -407,21 +717,22 @@ function criarConfrontoMd3(id) {
   return { id, timeA: null, timeB: null, jogos: [null, null, null], vencedor: null };
 }
 
-document.getElementById('btn-gerar-mata-mata').addEventListener('click', () => {
+document.getElementById('btn-gerar-mata-mata').addEventListener('click', async () => {
   const classA = calcularClassificacao('A');
   const classB = calcularClassificacao('B');
   if (classA.length < 2 || classB.length < 2) {
-    return alert('É necessário ter ao menos 2 times classificados em cada grupo.');
+    return abrirModalAviso('Classificação incompleta', 'É necessário ter ao menos 2 times classificados em cada grupo.');
   }
-  if (!confirm('Gerar as semifinais com os 2 primeiros de cada grupo? Isso reinicia a fase final.')) return;
+  const ok = await abrirModalConfirmacao('Gerar semifinais', 'Gerar as semifinais com os 2 primeiros de cada grupo? Isso reinicia a fase final.');
+  if (!ok) return;
 
   const semi1 = criarConfrontoMd3('semi1');
-  semi1.timeA = classA[0].time; // 1º Grupo A
-  semi1.timeB = classB[1].time; // 2º Grupo B
+  semi1.timeA = classA[0].time;
+  semi1.timeB = classB[1].time;
 
   const semi2 = criarConfrontoMd3('semi2');
-  semi2.timeA = classB[0].time; // 1º Grupo B
-  semi2.timeB = classA[1].time; // 2º Grupo A
+  semi2.timeA = classB[0].time;
+  semi2.timeB = classA[1].time;
 
   const final = criarConfrontoMd3('final');
 
@@ -430,8 +741,9 @@ document.getElementById('btn-gerar-mata-mata').addEventListener('click', () => {
   renderMataMata();
 });
 
-document.getElementById('btn-limpar-mata-mata').addEventListener('click', () => {
-  if (!confirm('Apagar toda a fase final?')) return;
+document.getElementById('btn-limpar-mata-mata').addEventListener('click', async () => {
+  const ok = await abrirModalConfirmacao('Limpar fase final', 'Apagar toda a fase final?');
+  if (!ok) return;
   estado.mataMata = null;
   salvar(CHAVES.MATA_MATA, estado.mataMata);
   renderMataMata();
@@ -489,7 +801,6 @@ function renderMataMata() {
   renderConfrontoMd3(estado.mataMata.semi1, 'semi1');
   renderConfrontoMd3(estado.mataMata.semi2, 'semi2');
 
-  // Atualiza a final automaticamente quando as duas semis tiverem vencedor
   const vencSemi1 = calcularVencedorMd3(estado.mataMata.semi1);
   const vencSemi2 = calcularVencedorMd3(estado.mataMata.semi2);
   estado.mataMata.semi1.vencedor = vencSemi1;
