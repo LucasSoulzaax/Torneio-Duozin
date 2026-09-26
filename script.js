@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+/* ===== Torneio Duozin - Wildrift - Luckzin.s ===== */
 
 const CHAVES = {
   TIMES: 'torneio_times',
@@ -167,7 +167,6 @@ listaTimesEl.addEventListener('click', async e => {
 /* ---------- Sorteio de Grupos (aleatoriedade reforçada) ---------- */
 function embaralhar(array) {
   const arr = [...array];
-  // Fisher-Yates, executado duas vezes para reforçar a distribuição percebida
   for (let passo = 0; passo < 2; passo++) {
     for (let i = arr.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -188,14 +187,11 @@ document.getElementById('btn-sortear-grupos').addEventListener('click', async ()
   const embaralhados = embaralhar(estado.times);
   const meio = embaralhados.length / 2;
 
-  // sorteia também qual metade do array vira Grupo A e qual vira Grupo B,
-  // eliminando qualquer viés de posição
   let grupoA = embaralhados.slice(0, meio);
   let grupoB = embaralhados.slice(meio);
   if (Math.random() < 0.5) {
     [grupoA, grupoB] = [grupoB, grupoA];
   }
-  // embaralha novamente a ordem interna de cada grupo
   grupoA = embaralhar(grupoA);
   grupoB = embaralhar(grupoB);
 
@@ -264,7 +260,6 @@ function gerarRodadasGrupo(times) {
   }));
 }
 
-/* Monta uma lista simples de confrontos (sem folga) pra preview do modal */
 function montarPreviewCombates() {
   const blocos = [];
   ['A', 'B'].forEach(grupo => {
@@ -287,125 +282,29 @@ function montarPreviewCombates() {
 }
 
 /* ==========================================================
-   ARENA 3D (Three.js) — animação de dois "personagens" se enfrentando
+   ARENA EM CSS PURO — dois "lutadores" se aproximando e colidindo
+   (sem Three.js, sem canvas, sem bibliotecas externas)
    ========================================================== */
-let arenaState = null;
 
-function criarPersonagem(corHex) {
-  const grupo = new THREE.Group();
+function tocarAnimacaoArena() {
+  const arena = document.querySelector('.arena-css');
+  if (!arena) return;
+  arena.classList.remove('em-posicao', 'tremendo', 'impacto');
 
-  const corpoMat = new THREE.MeshStandardMaterial({ color: corHex, roughness: 0.35, metalness: 0.4, emissive: corHex, emissiveIntensity: 0.15 });
-  const corpo = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 0.9, 6, 12), corpoMat);
-  corpo.position.y = 0.7;
-  grupo.add(corpo);
+  // força reflow pra reiniciar a transição mesmo se já tiver rodado antes
+  void arena.offsetWidth;
 
-  const cabecaMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 });
-  const cabeca = new THREE.Mesh(new THREE.SphereGeometry(0.28, 16, 16), cabecaMat);
-  cabeca.position.y = 1.55;
-  grupo.add(cabeca);
+  requestAnimationFrame(() => {
+    arena.classList.add('em-posicao'); // lutadores caminham até o centro (transition CSS)
 
-  const armaMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.8, roughness: 0.2, emissive: 0xffd700, emissiveIntensity: 0.3 });
-  const arma = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.9, 8), armaMat);
-  arma.position.set(0.45, 0.9, 0);
-  arma.rotation.z = Math.PI / 2.3;
-  grupo.add(arma);
+    setTimeout(() => {
+      arena.classList.add('tremendo'); // pequeno tremor de "combate"
+    }, 1150);
 
-  return grupo;
-}
-
-function iniciarArena() {
-  const container = document.getElementById('arena-canvas');
-  container.innerHTML = '';
-
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
-  camera.position.set(0, 1.6, 5.2);
-  camera.lookAt(0, 0.8, 0);
-
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setSize(container.clientWidth, container.clientHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  container.appendChild(renderer.domElement);
-
-  const luzAmbiente = new THREE.AmbientLight(0x8c52ff, 0.6);
-  scene.add(luzAmbiente);
-  const luzPonto = new THREE.PointLight(0xb083ff, 3, 15);
-  luzPonto.position.set(0, 4, 3);
-  scene.add(luzPonto);
-  const luzRim = new THREE.PointLight(0xff5c5c, 1.5, 10);
-  luzRim.position.set(0, 1, -3);
-  scene.add(luzRim);
-
-  const chaoMat = new THREE.MeshStandardMaterial({ color: 0x1a1a22, roughness: 0.9 });
-  const chao = new THREE.Mesh(new THREE.CircleGeometry(6, 32), chaoMat);
-  chao.rotation.x = -Math.PI / 2;
-  chao.position.y = 0;
-  scene.add(chao);
-
-  const personagemA = criarPersonagem(0x8c52ff);
-  personagemA.position.set(-2.6, 0, 0);
-  scene.add(personagemA);
-
-  const personagemB = criarPersonagem(0xff2e63);
-  personagemB.position.set(2.6, 0, 0);
-  personagemB.rotation.y = Math.PI;
-  scene.add(personagemB);
-
-  const vsTag = document.createElement('div');
-  vsTag.className = 'vs-tag-arena';
-  vsTag.textContent = 'VS';
-  container.appendChild(vsTag);
-
-  let relogio = new THREE.Clock();
-  let ativo = true;
-
-  function animar() {
-    if (!ativo) return;
-    requestAnimationFrame(animar);
-    const t = relogio.getElapsedTime();
-
-    const aproximacao = Math.min(t / 2.2, 1);
-    const easeInOut = aproximacao < 0.5
-      ? 2 * aproximacao * aproximacao
-      : 1 - Math.pow(-2 * aproximacao + 2, 2) / 2;
-
-    personagemA.position.x = -2.6 + easeInOut * 1.7;
-    personagemB.position.x = 2.6 - easeInOut * 1.7;
-
-    personagemA.position.y = Math.abs(Math.sin(t * 4)) * 0.08;
-    personagemB.position.y = Math.abs(Math.sin(t * 4 + 1)) * 0.08;
-
-    if (aproximacao >= 1) {
-      const impacto = Math.sin(t * 18) * 0.08;
-      personagemA.position.x = -0.9 + impacto;
-      personagemB.position.x = 0.9 - impacto;
-      vsTag.classList.add('mostrar');
-      luzPonto.intensity = 3 + Math.abs(Math.sin(t * 10)) * 2;
-    } else {
-      vsTag.classList.remove('mostrar');
-    }
-
-    personagemA.rotation.y = Math.sin(t * 2) * 0.1;
-    personagemB.rotation.y = Math.PI + Math.sin(t * 2 + 1) * 0.1;
-
-    renderer.render(scene, camera);
-  }
-  animar();
-
-  arenaState = {
-    parar() {
-      ativo = false;
-      renderer.dispose();
-      container.innerHTML = '';
-    }
-  };
-}
-
-function pararArena() {
-  if (arenaState) {
-    arenaState.parar();
-    arenaState = null;
-  }
+    setTimeout(() => {
+      arena.classList.add('impacto'); // flash de impacto + tag VS acende
+    }, 1550);
+  });
 }
 
 /* ---------- Modal de Combate: preview + confirmação ---------- */
@@ -458,14 +357,13 @@ function abrirModalCombate() {
     const blocos = montarPreviewCombates();
     renderPreviewCombates(blocos);
     overlay.classList.add('aberto');
-    iniciarArena();
+    tocarAnimacaoArena();
 
     const btnConfirmar = document.getElementById('combate-confirmar');
     const btnCancelar = document.getElementById('combate-cancelar');
 
     function limpar(valor) {
       overlay.classList.remove('aberto');
-      pararArena();
       btnConfirmar.removeEventListener('click', onConfirmar);
       btnCancelar.removeEventListener('click', onCancelar);
       resolve(valor);
@@ -537,8 +435,8 @@ function criarBlocoPartida(grupo, rodadaIdx, chavePartida, partida) {
         <span>${partida.timeA}<span class="vs">vs</span>${partida.timeB}</span>
         <span class="status-tag ${feito ? 'feito' : ''}">${feito ? 'Resultado lançado' : 'Pendente'}</span>
       </div>
-      <details ${feito ? '' : ''}>
-        <summary class="btn-mini" style="display:inline-block;cursor:pointer;">${feito ? 'Ver / editar resultado' : 'Lançar resultado'}</summary>
+      <details>
+        <summary>${feito ? 'Ver / editar resultado' : 'Lançar resultado'}</summary>
         <div class="stats-grid">
           <div class="stats-time">
             <strong>${partida.timeA}</strong>
@@ -594,7 +492,6 @@ function renderRodadas() {
   renderRodadasGrupo('B', 'tabela-rodadas-b');
 }
 
-/* Delegação de eventos para salvar/apagar resultado de partida */
 document.getElementById('grupos').addEventListener('click', async e => {
   const bloco = e.target.closest('.partida');
   if (!bloco) return;
