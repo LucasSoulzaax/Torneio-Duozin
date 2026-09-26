@@ -536,7 +536,7 @@ table.tabela-classificacao tr.qualificado {
   color: #ffd700;
 }
 
-/* ===== MODAL DE COMBATE (maior, com arena 3D) ===== */
+/* ===== MODAL DE COMBATE (maior, com arena em CSS puro) ===== */
 .modal-combate-caixa {
   background: linear-gradient(160deg, var(--preto-card), #12121a);
   border: 1px solid rgba(140, 82, 255, 0.5);
@@ -561,21 +561,113 @@ table.tabela-classificacao tr.qualificado {
   margin-bottom: 16px;
 }
 
-.arena-canvas {
+/* ---- Arena em CSS puro (sem Three.js / sem canvas) ---- */
+.arena-css {
+  position: relative;
   width: 100%;
-  height: 220px;
+  height: 200px;
   border-radius: 12px;
   overflow: hidden;
   background: radial-gradient(circle at 50% 30%, #241b3a, #050507 80%);
   border: 1px solid rgba(140,82,255,0.3);
   margin-bottom: 18px;
-  position: relative;
 }
 
-.arena-canvas canvas {
-  display: block;
-  width: 100% !important;
-  height: 100% !important;
+.arena-chao {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 30%;
+  background: linear-gradient(to top, rgba(140,82,255,0.15), transparent);
+  border-top: 1px solid rgba(140,82,255,0.25);
+}
+
+.lutador {
+  position: absolute;
+  bottom: 22%;
+  width: 46px;
+  height: 90px;
+  transition: left 1.1s cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.lutador-corpo {
+  width: 34px;
+  height: 62px;
+  margin: 0 auto;
+  border-radius: 16px;
+  box-shadow: 0 0 14px rgba(0,0,0,0.5);
+}
+
+.lutador-cabeca {
+  width: 26px;
+  height: 26px;
+  margin: -8px auto 0;
+  border-radius: 50%;
+  background: #f1f1f5;
+  box-shadow: 0 0 8px rgba(0,0,0,0.4);
+}
+
+.lutador-a {
+  left: 8%;
+}
+.lutador-a .lutador-corpo {
+  background: var(--roxo);
+  box-shadow: 0 0 16px rgba(140,82,255,0.6);
+}
+
+.lutador-b {
+  left: 78%;
+}
+.lutador-b .lutador-corpo {
+  background: #ff2e63;
+  box-shadow: 0 0 16px rgba(255,46,99,0.6);
+}
+
+.arena-css.em-posicao .lutador-a {
+  left: 34%;
+}
+.arena-css.em-posicao .lutador-b {
+  left: 52%;
+}
+
+.arena-css.tremendo .lutador-a {
+  animation: tremerA 0.25s ease-in-out infinite;
+}
+.arena-css.tremendo .lutador-b {
+  animation: tremerB 0.25s ease-in-out infinite;
+}
+
+@keyframes tremerA {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(4px); }
+}
+@keyframes tremerB {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-4px); }
+}
+
+.impacto-flash {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff, var(--roxo-claro) 40%, transparent 70%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.arena-css.impacto .impacto-flash {
+  animation: flashImpacto 0.5s ease-out;
+}
+
+@keyframes flashImpacto {
+  0% { opacity: 0; width: 10px; height: 10px; }
+  30% { opacity: 1; width: 140px; height: 140px; }
+  100% { opacity: 0; width: 180px; height: 180px; }
 }
 
 .vs-tag-arena {
@@ -592,7 +684,8 @@ table.tabela-classificacao tr.qualificado {
   transition: opacity 0.3s;
 }
 
-.vs-tag-arena.mostrar {
+.arena-css.impacto .vs-tag-arena,
+.arena-css.tremendo .vs-tag-arena {
   opacity: 1;
 }
 
