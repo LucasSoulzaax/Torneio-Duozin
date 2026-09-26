@@ -5,13 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Torneio Duozin - Wildrift - Luckzin.s</title>
 <link rel="stylesheet" href="style.css">
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js"
-  }
-}
-</script>
 </head>
 <body>
 
@@ -134,12 +127,26 @@
   </div>
 </div>
 
-<!-- ===== MODAL DE COMBATE (THREE.JS) ===== -->
+<!-- ===== MODAL DE COMBATE (ANIMAÇÃO CSS, SEM THREE.JS) ===== -->
 <div id="modal-combate-overlay" class="modal-overlay modal-combate-overlay">
   <div class="modal-combate-caixa">
     <h3 class="modal-combate-titulo">⚔️ Gerar Combates da Fase de Grupos</h3>
     <p class="modal-combate-sub">Os times serão sorteados e cruzados em 5 rodadas por grupo.</p>
-    <div id="arena-canvas" class="arena-canvas"></div>
+
+    <div class="arena-css">
+      <div class="arena-chao"></div>
+      <div class="lutador lutador-a">
+        <div class="lutador-corpo"></div>
+        <div class="lutador-cabeca"></div>
+      </div>
+      <div class="lutador lutador-b">
+        <div class="lutador-corpo"></div>
+        <div class="lutador-cabeca"></div>
+      </div>
+      <div class="impacto-flash"></div>
+      <div class="vs-tag-arena">VS</div>
+    </div>
+
     <div id="lista-combates-preview" class="lista-combates-preview"></div>
     <div class="modal-acoes">
       <button id="combate-cancelar" class="btn-mini">Cancelar</button>
@@ -171,6 +178,6 @@
   </div>
 </div>
 
-<script type="module" src="script.js"></script>
+<script src="script.js"></script>
 </body>
 </html>
