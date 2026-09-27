@@ -423,7 +423,10 @@ function numeroParaOuro(num) {
 }
 
 /* ---------- Render das Rodadas + formulário de resultado ---------- */
-/* Vencedor da PARTIDA: 1º critério = mais kills; empate de kills = decide pelo ouro */
+/* Vencedor da PARTIDA:
+   - Se um time atingir 3 kills (e o outro não), ele vence automaticamente ("primeiro a 3").
+   - Se nenhum time chegar a 3 (ex: 2x2, 1x1, 2x0...), ou ambos empatarem em kills, o ouro decide.
+*/
 function criarBlocoPartida(grupo, rodadaIdx, chavePartida, partida) {
   if (!partida.timeA || !partida.timeB) return '';
   const feito = partida.resultado !== null;
@@ -517,10 +520,13 @@ document.getElementById('grupos').addEventListener('click', async e => {
     const numOuroA = ouroParaNumero(ouroA);
     const numOuroB = ouroParaNumero(ouroB);
 
-    /* Critério 1: mais kills vence. Critério 2 (empate de kills): mais ouro vence. */
+    /* Critério 1: quem chegar a 3 kills primeiro vence direto (formato "melhor de 3"). */
+    /* Critério 2 (ninguém chegou a 3, ou empate total em kills): decide pelo ouro. */
     let vencedor;
-    if (killsA !== killsB) {
-      vencedor = killsA > killsB ? partida.timeA : partida.timeB;
+    if (killsA >= 3 && killsA > killsB) {
+      vencedor = partida.timeA;
+    } else if (killsB >= 3 && killsB > killsA) {
+      vencedor = partida.timeB;
     } else if (numOuroA !== numOuroB) {
       vencedor = numOuroA > numOuroB ? partida.timeA : partida.timeB;
     } else {
