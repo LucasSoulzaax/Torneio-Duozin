@@ -291,18 +291,17 @@ function tocarAnimacaoArena() {
   if (!arena) return;
   arena.classList.remove('em-posicao', 'tremendo', 'impacto');
 
-  // força reflow pra reiniciar a transição mesmo se já tiver rodado antes
   void arena.offsetWidth;
 
   requestAnimationFrame(() => {
-    arena.classList.add('em-posicao'); // lutadores caminham até o centro (transition CSS)
+    arena.classList.add('em-posicao');
 
     setTimeout(() => {
-      arena.classList.add('tremendo'); // pequeno tremor de "combate"
+      arena.classList.add('tremendo');
     }, 1150);
 
     setTimeout(() => {
-      arena.classList.add('impacto'); // flash de impacto + tag VS acende
+      arena.classList.add('impacto');
     }, 1550);
   });
 }
@@ -424,6 +423,7 @@ function numeroParaOuro(num) {
 }
 
 /* ---------- Render das Rodadas + formulário de resultado ---------- */
+/* Vencedor da PARTIDA: 1º critério = mais kills; empate de kills = decide pelo ouro */
 function criarBlocoPartida(grupo, rodadaIdx, chavePartida, partida) {
   if (!partida.timeA || !partida.timeB) return '';
   const feito = partida.resultado !== null;
@@ -516,7 +516,16 @@ document.getElementById('grupos').addEventListener('click', async e => {
 
     const numOuroA = ouroParaNumero(ouroA);
     const numOuroB = ouroParaNumero(ouroB);
-    const vencedor = numOuroA === numOuroB ? null : (numOuroA > numOuroB ? partida.timeA : partida.timeB);
+
+    /* Critério 1: mais kills vence. Critério 2 (empate de kills): mais ouro vence. */
+    let vencedor;
+    if (killsA !== killsB) {
+      vencedor = killsA > killsB ? partida.timeA : partida.timeB;
+    } else if (numOuroA !== numOuroB) {
+      vencedor = numOuroA > numOuroB ? partida.timeA : partida.timeB;
+    } else {
+      vencedor = null;
+    }
 
     partida.resultado = {
       ouroA, ouroB, killsA, deathsA, assistsA, killsB, deathsB, assistsB, vencedor
