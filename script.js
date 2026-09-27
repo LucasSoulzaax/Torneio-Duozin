@@ -4,7 +4,8 @@ const CHAVES = {
   TIMES: 'torneio_times',
   GRUPOS: 'torneio_grupos',
   RODADAS: 'torneio_rodadas',
-  MATA_MATA: 'torneio_mata_mata'
+  MATA_MATA: 'torneio_mata_mata',
+  AJUSTES: 'torneio_ajustes_manuais'
 };
 
 function carregar(chave, padrao) {
@@ -20,7 +21,8 @@ let estado = {
   times: carregar(CHAVES.TIMES, []),
   grupos: carregar(CHAVES.GRUPOS, { A: [], B: [] }),
   rodadas: carregar(CHAVES.RODADAS, { A: [], B: [] }),
-  mataMata: carregar(CHAVES.MATA_MATA, null)
+  mataMata: carregar(CHAVES.MATA_MATA, null),
+  ajustes: carregar(CHAVES.AJUSTES, { A: {}, B: {} })
 };
 
 /* ==========================================================
@@ -200,8 +202,10 @@ document.getElementById('btn-sortear-grupos').addEventListener('click', async ()
 
   estado.rodadas = { A: [], B: [] };
   estado.mataMata = null;
+  estado.ajustes = { A: {}, B: {} };
   salvar(CHAVES.RODADAS, estado.rodadas);
   salvar(CHAVES.MATA_MATA, estado.mataMata);
+  salvar(CHAVES.AJUSTES, estado.ajustes);
 
   renderGrupos();
   renderRodadas();
@@ -215,9 +219,11 @@ document.getElementById('btn-limpar-grupos').addEventListener('click', async () 
   estado.grupos = { A: [], B: [] };
   estado.rodadas = { A: [], B: [] };
   estado.mataMata = null;
+  estado.ajustes = { A: {}, B: {} };
   salvar(CHAVES.GRUPOS, estado.grupos);
   salvar(CHAVES.RODADAS, estado.rodadas);
   salvar(CHAVES.MATA_MATA, estado.mataMata);
+  salvar(CHAVES.AJUSTES, estado.ajustes);
   renderGrupos();
   renderRodadas();
   renderClassificacao();
@@ -520,8 +526,6 @@ document.getElementById('grupos').addEventListener('click', async e => {
     const numOuroA = ouroParaNumero(ouroA);
     const numOuroB = ouroParaNumero(ouroB);
 
-    /* Critério 1: quem chegar a 3 kills primeiro vence direto (formato "melhor de 3"). */
-    /* Critério 2 (ninguém chegou a 3, ou empate total em kills): decide pelo ouro. */
     let vencedor;
     if (killsA >= 3 && killsA > killsB) {
       vencedor = partida.timeA;
@@ -552,7 +556,9 @@ document.getElementById('grupos').addEventListener('click', async e => {
   }
 });
 
-/* ---------- Classificação (desempate por ouro) ---------- */
+/* ==========================================================
+   CLASSIFICAÇÃO — cálculo automático + ajustes manuais de V/D
+   ========================================================== */
 function calcularClassificacao(grupo) {
   const nomes = estado.grupos[grupo] || [];
   const tabela = {};
@@ -580,8 +586,20 @@ function calcularClassificacao(grupo) {
     });
   });
 
+  /* Aplica ajustes manuais de V/D (sobrescrevem o valor calculado, quando existirem) */
+  const ajustesGrupo = estado.ajustes[grupo] || {};
+  Object.values(tabela).forEach(t => {
+    const ajuste = ajustesGrupo[t.time];
+    if (ajuste) {
+      if (ajuste.vitorias !== undefined && ajuste.vitorias !== null) t.vitorias = ajuste.vitorias;
+      if (ajuste.derrotas !== undefined && ajuste.derrotas !== null) t.derrotas = ajuste.derrotas;
+      t.editadoManualmente = true;
+    }
+  });
+
   return Object.values(tabela).sort((a, b) => {
     if (b.vitorias !== a.vitorias) return b.vitorias - a.vitorias;
+    if (b.kills !== a.kills) return b.kills - a.kills;
     return b.ouro - a.ouro;
   });
 }
@@ -602,11 +620,11 @@ function renderClassificacaoGrupo(grupo, containerId) {
       </thead>
       <tbody>
         ${dados.map((t, i) => `
-          <tr class="${i < 2 ? 'qualificado' : ''}">
+          <tr class="${i < 2 ? 'qualificado' : ''} ${t.editadoManualmente ? 'linha-editada' : ''}">
             <td>${i + 1}</td>
             <td>${t.time}</td>
-            <td>${t.vitorias}</td>
-            <td>${t.derrotas}</td>
+            <td><input type="number" min="0" class="input-vd" data-grupo="${grupo}" data-time="${t.time}" data-campo="vitorias" value="${t.vitorias}"></td>
+            <td><input type="number" min="0" class="input-vd" data-grupo="${grupo}" data-time="${t.time}" data-campo="derrotas" value="${t.derrotas}"></td>
             <td>${numeroParaOuro(t.ouro)}</td>
             <td>${t.kills}</td>
             <td>${t.deaths}</td>
@@ -615,7 +633,8 @@ function renderClassificacaoGrupo(grupo, containerId) {
         `).join('')}
       </tbody>
     </table>
-    <p class="dica">Times destacados (top 2) avançam para a semifinal.</p>
+    <p class="dica">Times destacados (top 2) avançam para a semifinal. Colunas V e D podem ser editadas manualmente clicando no número.</p>
+    <button class="btn-mini resetar-ajustes" data-grupo="${grupo}">Resetar V/D para o cálculo automático</button>
   `;
 }
 
@@ -623,6 +642,32 @@ function renderClassificacao() {
   renderClassificacaoGrupo('A', 'classificacao-a');
   renderClassificacaoGrupo('B', 'classificacao-b');
 }
+
+/* Edição manual de V/D na tabela de classificação */
+document.getElementById('classificacao').addEventListener('change', e => {
+  if (!e.target.classList.contains('input-vd')) return;
+  const grupo = e.target.dataset.grupo;
+  const time = e.target.dataset.time;
+  const campo = e.target.dataset.campo;
+  const valor = Math.max(0, Number(e.target.value) || 0);
+
+  if (!estado.ajustes[grupo]) estado.ajustes[grupo] = {};
+  if (!estado.ajustes[grupo][time]) estado.ajustes[grupo][time] = {};
+  estado.ajustes[grupo][time][campo] = valor;
+
+  salvar(CHAVES.AJUSTES, estado.ajustes);
+  renderClassificacao();
+});
+
+document.getElementById('classificacao').addEventListener('click', async e => {
+  if (!e.target.classList.contains('resetar-ajustes')) return;
+  const grupo = e.target.dataset.grupo;
+  const ok = await abrirModalConfirmacao('Resetar ajustes', `Remover os ajustes manuais de V/D do Grupo ${grupo} e voltar ao cálculo automático?`);
+  if (!ok) return;
+  estado.ajustes[grupo] = {};
+  salvar(CHAVES.AJUSTES, estado.ajustes);
+  renderClassificacao();
+});
 
 /* ---------- Fase Final: Semifinais + Final (md3) ---------- */
 function criarConfrontoMd3(id) {
